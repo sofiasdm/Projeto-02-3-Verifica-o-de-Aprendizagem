@@ -1,0 +1,23 @@
+class Minerador {
+    int chave;
+    int capacidadeMax;
+    int cargaAtual;
+    
+    // Estados do deslocamento: 0 = Na Mina, 1 = Indo para a Base, 2 = Voltando para a Mina
+    int estado; 
+    int tempoDeslocamento;
+    boolean aptoColetar;
+    
+    // Guarda o turno exato da última movimentação relevante para critérios de desempate
+    int turnoUltimaAcao; 
+
+    public Minerador(int chave, int capacidadeMax) {
+        this.chave = chave;
+        this.capacidadeMax = capacidadeMax;
+        this.cargaAtual = 0;
+        this.estado = 0;
+        this.tempoDeslocamento = 0;
+        this.aptoColetar = true; // Por padrão, na inicialização começam aptos
+        this.turnoUltimaAcao = 0;
+    }
+}
