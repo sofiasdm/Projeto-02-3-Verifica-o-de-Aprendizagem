@@ -1,0 +1,73 @@
+class MinaHash {
+    Minerador[] vagas;
+    FilaEstatica[] filasEspera; // Closed Address para quando lotar
+    int tamanhoMina;
+    int totalMineradoresAlocados;
+
+    public MinaHash(int t, int maxMineradores) {
+        this.tamanhoMina = t;
+        this.vagas = new Minerador[t];
+        this.totalMineradoresAlocados = 0;
+        
+        // Inicializa uma fila de espera para cada posição da hash
+        this.filasEspera = new FilaEstatica[t];
+        for (int i = 0; i < t; i++) {
+            this.filasEspera[i] = new FilaEstatica(maxMineradores);
+        }
+    }
+
+    public int hash(int chave) {
+        return chave % tamanhoMina; // h(k) = k mod t
+    }
+
+    public void inserirMinerador(Minerador m, int turnoAtual) {
+        int posIdeal = hash(m.chave);
+        
+        // Regra: Se a mina NÃO está totalmente cheia, resolve por Linear Probing
+        if (totalMineradoresAlocados < tamanhoMina) {
+            int posAtual = posIdeal;
+            boolean colidiu = false;
+            int chaveOcupanteOriginal = -1;
+
+            if (vagas[posAtual] != null) {
+                colidiu = true;
+                chaveOcupanteOriginal = vagas[posAtual].chave;
+            }
+
+            while (vagas[posAtual] != null) {
+                if (colidiu) {
+                    System.out.println("minerador " + m.chave + " colidiu com minerador " + vagas[posAtual].chave + " na mina " + posAtual + ".");
+                }
+                posAtual = (posAtual + 1) % tamanhoMina;
+            }
+
+            // Se houve colisões no meio do caminho mas o print de colisão inicial precisa mapear o primeiro
+            if (colidiu && posAtual == (posIdeal + 1) % tamanhoMina) {
+                // Impresso no laço acima de forma sequencial por passo do linear probing
+            }
+
+            vagas[posAtual] = m;
+            m.estado = 0;
+            m.turnoUltimaAcao = turnoAtual;
+            totalMineradoresAlocados++;
+            System.out.println("minerador " + m.chave + " inserido na mina " + posAtual + ".");
+        } 
+        // Regra: Se a mina JÁ está cheia, Closed Address Hashing (Fila de espera)
+        else {
+            filasEspera[posIdeal].enfileirar(m);
+            System.out.println("minerador " + m.chave + " inserido na fila de espera da mina " + posIdeal + ".");
+        }
+    }
+
+    public void imprimirEstadoMina() {
+        for (int i = 0; i < tamanhoMina; i++) {
+            if (vagas[i] != null) {
+                System.out.print(vagas[i].chave + "(" + vagas[i].cargaAtual + ") ");
+            } else {
+                // Caso a vaga esteja vazia (opcional dependendo de P02_out.txt, ajuste se necessário)
+                System.out.print("Vazia "); 
+            }
+        }
+        System.out.println();
+    }
+}
