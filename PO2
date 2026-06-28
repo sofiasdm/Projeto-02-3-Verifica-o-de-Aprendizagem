@@ -1,0 +1,224 @@
+import java.util.Scanner;
+
+class Minerador {
+    int chave;
+    int capacidadeMax;
+    int cargaAtual;
+    int estado; // 0 = Na Mina, 1 = Indo para a Base, 2 = Voltando para a Mina
+    int tempoDeslocamento;
+    boolean aptoColetar;
+    int turnoUltimaAcao; 
+
+    public Minerador(int chave, int capacidadeMax) {
+        this.chave = chave;
+        this.capacidadeMax = capacidadeMax;
+        this.cargaAtual = 0;
+        this.estado = 0;
+        this.tempoDeslocamento = 0;
+        this.aptoColetar = true; 
+        this.turnoUltimaAcao = 0;
+    }
+}
+
+class FilaEstatica {
+    private Minerador[] elementos;
+    private int inicio;
+    private int fim;
+    private int tamanho;
+    private int capacidade;
+
+    public FilaEstatica(int capacidade) {
+        this.capacidade = capacidade;
+        this.elementos = new Minerador[capacidade];
+        this.inicio = 0;
+        this.fim = 0;
+        this.tamanho = 0;
+    }
+
+    public boolean enfileirar(Minerador m) {
+        if (tamanho == capacidade) return false;
+        elementos[fim] = m;
+        fim = (fim + 1) % capacidade;
+        tamanho++;
+        return true;
+    }
+
+    public Minerador desenfileirar() {
+        if (tamanho == 0) return null;
+        Minerador m = elementos[inicio];
+        elementos[inicio] = null;
+        inicio = (inicio + 1) % capacidade;
+        tamanho--;
+        return m;
+    }
+
+    public boolean estaVazia() {
+        return tamanho == 0;
+    }
+}
+
+class MinaHash {
+    Minerador[] vagas;
+    FilaEstatica[] filasEspera; 
+    int tamanhoMina;
+    int totalMineradoresAlocados;
+
+    public MinaHash(int t, int maxMineradores) {
+        this.tamanhoMina = t;
+        this.vagas = new Minerador[t];
+        this.totalMineradoresAlocados = 0;
+        this.filasEspera = new FilaEstatica[t];
+        for (int i = 0; i < t; i++) {
+            this.filasEspera[i] = new FilaEstatica(maxMineradores);
+        }
+    }
+
+    public int hash(int chave) {
+        return chave % tamanhoMina;
+    }
+
+    public void inserirMinerador(Minerador m, int turnoAtual) {
+        int posIdeal = hash(m.chave);
+        
+        if (totalMineradoresAlocados < tamanhoMina) {
+            int posAtual = posIdeal;
+            while (vagas[posAtual] != null) {
+                System.out.println("minerador " + m.chave + " colidiu com minerador " + vagas[posAtual].chave + " na mina " + posAtual + ".");
+                posAtual = (posAtual + 1) % tamanhoMina;
+            }
+            vagas[posAtual] = m;
+            m.estado = 0;
+            m.turnoUltimaAcao = turnoAtual;
+            totalMineradoresAlocados++;
+            System.out.println("minerador " + m.chave + " inserido na mina " + posAtual + ".");
+        } else {
+            filasEspera[posIdeal].enfileirar(m);
+            System.out.println("minerador " + m.chave + " inserido na fila de espera da mina " + posIdeal + ".");
+        }
+    }
+
+    public void imprimirEstadoMina() {
+        for (int i = 0; i < tamanhoMina; i++) {
+            if (vagas[i] != null) {
+                System.out.print(vagas[i].chave + "(" + vagas[i].cargaAtual + ") ");
+            } else {
+                System.out.print("vazia "); 
+            }
+        }
+        System.out.println();
+    }
+}
+
+public class P02 {
+    public static void main(String[] args) {
+        Scanner sc = new Scanner(System.in);
+
+        // Loop para processar múltiplos jogos sequencialmente se houver entradas no arquivo
+        while (sc.hasNextInt()) {
+            int t = sc.nextInt();
+            int n = sc.nextInt();
+            int d = sc.nextInt();
+            int r = sc.nextInt();
+
+            System.out.println("novo jogo comecou.");
+            System.out.println("etapa de inicializacao.");
+
+            MinaHash mina = new MinaHash(t, n);
+            Minerador[] todosMineradores = new Minerador[n];
+
+            for (int i = 0; i < n; i++) {
+                int chave = sc.nextInt();
+                int capMax = sc.nextInt();
+                todosMineradores[i] = new Minerador(chave, capMax);
+                mina.inserirMinerador(todosMineradores[i], 0);
+            }
+            mina.imprimirEstadoMina();
+
+            int totalBase = 0;
+
+            for (int turno = 1; turno <= r; turno++) {
+                System.out.println("turno " + turno + " comecou.");
+
+                // 1. Coleta
+                for (int i = 0; i < t; i++) {
+                    Minerador m = mina.vagas[i];
+                    if (m != null && m.aptoColetar) {
+                        m.cargaAtual++;
+                    }
+                    if (m != null && !m.aptoColetar) {
+                        m.aptoColetar = true; 
+                    }
+                }
+
+                mina.imprimirEstadoMina();
+
+                // 2. Retorno à Base (Fim do Turno)
+                for (int i = 0; i < t; i++) {
+                    Minerador m = mina.vagas[i];
+                    if (m != null && m.cargaAtual >= m.capacidadeMax) {
+                        System.out.println("minerador " + m.chave + " a caminho da base.");
+                        m.estado = 1; 
+                        m.tempoDeslocamento = d;
+                        m.turnoUltimaAcao = turno;
+                        
+                        mina.vagas[i] = null;
+                        mina.totalMineradoresAlocados--;
+
+                        // Substituição imediata por quem aguarda na fila daquela posição
+                        if (!mina.filasEspera[i].estaVazia()) {
+                            Minerador proximo = mina.filasEspera[i].desenfileirar();
+                            proximo.estado = 0;
+                            proximo.aptoColetar = false; 
+                            proximo.turnoUltimaAcao = turno;
+                            mina.vagas[i] = proximo;
+                            mina.totalMineradoresAlocados++;
+                            System.out.println("minerador " + proximo.chave + " inserido na mina " + i + ".");
+                        }
+                    }
+                }
+
+                // 3. Movimentação externa e prioridades
+                ordenarMineradoresPorPrioridade(todosMineradores);
+
+                for (Minerador m : todosMineradores) {
+                    if (m.estado == 1) {
+                        m.tempoDeslocamento--;
+                        if (m.tempoDeslocamento == 0) {
+                            System.out.println("minerador " + m.chave + " depositou " + m.cargaAtual + " minerio(s) na base.");
+                            totalBase += m.cargaAtual;
+                            m.cargaAtual = 0;
+                            m.estado = 2; 
+                            m.tempoDeslocamento = d;
+                            m.turnoUltimaAcao = turno;
+                        }
+                    } else if (m.estado == 2) {
+                        m.tempoDeslocamento--;
+                        if (m.tempoDeslocamento == 0) {
+                            System.out.println("minerador " + m.chave + " retornou as minas.");
+                            mina.inserirMinerador(m, turno);
+                        }
+                    }
+                }
+
+                System.out.println("base: " + totalBase + ".");
+            }
+
+            System.out.println("fim de jogo. " + totalBase + " minerios coletados.");
+            System.out.println(); // Linha em branco separando os jogos como no .txt
+        }
+        sc.close();
+    }
+
+    private static void ordenarMineradoresPorPrioridade(Minerador[] arr) {
+        int n = arr.length;
+        for (int i = 0; i < n - 1; i++) {
+            for (int j = 0; j < n - i - 1; j++) {
+                if (arr[j].turnoUltimaAcao > arr[j + 1].turnoUltimaAcao) {
+                    Minerador temp = arr[j];
+                    arr[j] = arr[j + 1];
+                    arr[j + 1] = temp;
+                }
+            }
+        }
+    }
+}
