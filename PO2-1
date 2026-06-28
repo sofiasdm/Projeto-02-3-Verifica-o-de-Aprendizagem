@@ -1,0 +1,278 @@
+import java.util.Scanner;
+
+class Minerador {
+    int chave;
+    int capacidadeMaxima;
+    int cargaAtual;
+    // 0 = Mina
+    // 1 = Indo para base
+    // 2 = Voltando da base
+    int estado;
+    int tempoRestante;
+    boolean podeColetar;
+    // posição real na mina
+    int posicaoMina;
+    // hash original da chave
+    int hashOriginal;
+    // ordem utilizada para resolver prioridades
+    int ordemEvento;
+
+    public Minerador(int chave, int capacidadeMaxima) {
+        this.chave = chave;
+        this.capacidadeMaxima = capacidadeMaxima;
+        this.cargaAtual = 0;
+        this.estado = 0;
+        this.tempoRestante = 0;
+        this.podeColetar = true;
+        this.posicaoMina = -1;
+        this.hashOriginal = -1;
+        this.ordemEvento = 0;
+    }
+}
+
+class Fila {
+    private Minerador[] dados;
+    private int inicio;
+    private int fim;
+    private int quantidade;
+
+    public Fila(int capacidade) {
+        dados = new Minerador[capacidade];
+        inicio = 0;
+        fim = 0;
+        quantidade = 0;
+    }
+
+    public boolean vazia() {
+        return quantidade == 0;
+    }
+
+    public boolean cheia() {
+        return quantidade == dados.length;
+    }
+
+    public void enfileirar(Minerador m) {
+        if (cheia())
+            return;
+        dados[fim] = m;
+        fim++;
+
+        if (fim == dados.length)
+            fim = 0;
+        quantidade++;
+    }
+
+    public Minerador desenfileirar() {
+        if (vazia())
+            return null;
+        Minerador aux = dados[inicio];
+        dados[inicio] = null;
+        inicio++;
+
+        if (inicio == dados.length)
+            inicio = 0;
+        quantidade--;
+        return aux;
+    }
+}
+
+class Mina {
+    Minerador[] vagas;
+    Fila[] filas;
+    int quantidade;
+    int tamanho;
+
+    public Mina(int tamanho, int numeroMineradores) {
+        this.tamanho = tamanho;
+        vagas = new Minerador[tamanho];
+        filas = new Fila[tamanho];
+        quantidade = 0;
+
+        for (int i = 0; i < tamanho; i++) {
+            filas[i] = new Fila(numeroMineradores);
+        }
+    }
+
+    public int hash(int chave) {
+        return chave % tamanho;
+    }
+
+    public void inserir(Minerador m) {
+        int posHash = hash(m.chave);
+        m.hashOriginal = posHash;
+        // Ainda existe vaga na mina
+        if (quantidade < tamanho) {
+            int pos = posHash;
+            while (vagas[pos] != null) {
+                System.out.println(
+                        "minerador "
+                                + m.chave
+                                + " colidiu com minerador "
+                                + vagas[pos].chave
+                                + " na mina "
+                                + pos
+                                + ".");
+                pos++;
+
+                if (pos == tamanho)
+                    pos = 0;
+            }
+
+            vagas[pos] = m;
+            m.posicaoMina = pos;
+            m.estado = 0;
+            m.podeColetar = true;
+            quantidade++;
+            System.out.println(
+                    "minerador "
+                            + m.chave
+                            + " inserido na mina "
+                            + pos
+                            + ".");
+
+        }
+        else {
+            filas[posHash].enfileirar(m);
+            System.out.println(
+                    "minerador "
+                            + m.chave
+                            + " inserido na fila de espera da mina "
+                            + posHash
+                            + ".");
+        }
+    }
+    public void removerDaMina(int posicao) {
+        vagas[posicao] = null;
+        quantidade--;
+    }
+    public void preencherVaga(int hashFila) {
+        if (filas[hashFila].vazia())
+            return;
+
+        int pos = hashFila;
+
+        while (vagas[pos] != null) {
+            pos++;
+            if (pos == tamanho)
+                pos = 0;
+
+        }
+        Minerador m = filas[hashFila].desenfileirar();
+        vagas[pos] = m;
+        quantidade++;
+        m.posicaoMina = pos;
+        m.estado = 0;
+        m.podeColetar = false;
+        System.out.println(
+                "minerador "
+                        + m.chave
+                        + " inserido na mina "
+                        + pos
+                        + ".");
+    }
+}
+class Util {
+    public static void imprimirMina(Mina mina) {
+        for (int i = 0; i < mina.tamanho; i++) {
+            if (mina.vagas[i] == null) {
+                System.out.print("vazia ");
+
+            } else {
+                System.out.print(
+                        mina.vagas[i].chave +
+                                "(" +
+                                mina.vagas[i].cargaAtual +
+                                ") ");
+
+            }
+        }
+        System.out.println();
+    }
+    public static void coletar(Mina mina) {
+        for (int i = 0; i < mina.tamanho; i++) {
+            Minerador m = mina.vagas[i];
+            if (m == null)
+                continue;
+            if (m.podeColetar) {
+                m.cargaAtual++;
+            }
+            else {
+                m.podeColetar = true;
+            }
+        }
+    }
+    public static void verificarSaidas(Mina mina) {
+        for (int i = 0; i < mina.tamanho; i++) {
+            Minerador m = mina.vagas[i];
+            if (m == null)
+                continue;
+
+            if (m.cargaAtual == m.capacidadeMaxima) {
+                System.out.println(
+                        "minerador "
+                                + m.chave
+                                + " a caminho da base.");
+
+                m.estado = 1;
+                m.tempoRestante = P02.distancia;
+                m.ordemEvento = ++P02.ordemEventos;
+                int hash = m.hashOriginal;
+                mina.removerDaMina(i);
+                mina.preencherVaga(hash);
+            }
+        }
+    }
+}
+
+public class P02 {
+    static int totalBase = 0;
+    static int ordemEventos = 0;
+    static int distancia;
+
+    public static void main(String[] args) {
+        Scanner sc = new Scanner(System.in);
+
+        while (sc.hasNextInt()) {
+            int t = sc.nextInt();
+            int n = sc.nextInt();
+            int d = sc.nextInt();
+            int r = sc.nextInt();
+
+            Mina mina = new Mina(t, n);
+            Minerador[] mineradores = new Minerador[n];
+
+            for (int i = 0; i < n; i++) {
+                int chave = sc.nextInt();
+                int capacidade = sc.nextInt();
+                mineradores[i] =
+                        new Minerador(chave, capacidade);
+            }
+            System.out.println("novo jogo comecou.");
+            System.out.println("etapa de inicializacao.");
+
+            for (int i = 0; i < n; i++) {
+                mina.inserir(mineradores[i]);
+            }
+            Util.imprimirMina(mina);
+            for (int turno = 1; turno <= r; turno++) {
+
+                System.out.println(
+                        "turno "
+                                + turno
+                                + " comecou.");
+
+                Util.coletar(mina);
+                Util.imprimirMina(mina);
+                Util.verificarSaidas(mina);
+
+                System.out.println(
+                        "base: "
+                                + totalBase
+                                + ".");
+
+            }
+        }
+        sc.close();
+    }
+}
+
